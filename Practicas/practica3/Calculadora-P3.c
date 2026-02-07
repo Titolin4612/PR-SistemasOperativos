@@ -1,250 +1,346 @@
-// rpn_alt.c — Calculadora RPN alternativa
-// Compilar: gcc rpn_alt.c -o rpn_alt -lm
-// Ejecutar: ./rpn_alt
+/*
+ * Calculadora RPN (Notación Polaca Inversa)
+ * ----------------------------------------
+ * Características:
+ * - Pila de doubles (máx 1024 elementos)
+ * - Entrada por líneas completas usando fgets
+ * - Tokens separados por espacios o tabulaciones
+ * - Soporta números decimales, negativos y notación científica
+ * - Operadores binarios: + - * /
+ * - Funciones: sqrt, sin, cos, tan (en GRADOS), pow
+ * - Comandos:
+ *      h -> ayuda
+ *      c -> limpiar pila
+ *      p -> mostrar tope
+ *      s -> mostrar últimos 8 elementos
+ *      q -> salir
+ * - Manejo básico de errores
+ * - Muestra resultado tras cada operación exitosa
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <ctype.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-#define MAX_STACK 1024
-#define MAX_LINE  2048
+#define STACK_MAX 1024
+#define LINE_MAX  1024
+#define SHOW_MAX  8
+
+/* ============================
+   Estructura de la pila
+   ============================ */
 
 typedef struct {
-    double values[MAX_STACK];
-    int count;
-} Pila;
+    double data[STACK_MAX];
+    int top;
+} Stack;
 
-/* ===== Manejo de pila ===== */
-
-void pila_iniciar(Pila *p) {
-    p->count = 0;
+/* Inicializa la pila */
+void stack_init(Stack *s) {
+    s->top = 0;
 }
 
-int pila_agregar(Pila *p, double n) {
-    if (p->count >= MAX_STACK) return 0;
-    p->values[p->count++] = n;
+/* Cantidad de elementos */
+int stack_size(Stack *s) {
+    return s->top;
+}
+
+/* Push */
+int stack_push(Stack *s, double val) {
+    if (s->top >= STACK_MAX) {
+        printf("Error: pila llena\n");
+        return 0;
+    }
+    s->data[s->top++] = val;
     return 1;
 }
 
-int pila_quitar(Pila *p, double *n) {
-    if (p->count == 0) return 0;
-    *n = p->values[--p->count];
+/* Pop */
+int stack_pop(Stack *s, double *out) {
+    if (s->top <= 0) {
+        return 0;
+    }
+    *out = s->data[--s->top];
     return 1;
 }
 
-int pila_ver_tope(Pila *p, double *n) {
-    if (p->count == 0) return 0;
-    *n = p->values[p->count - 1];
+/* Peek (ver tope sin eliminar) */
+int stack_peek(Stack *s, double *out) {
+    if (s->top <= 0) return 0;
+    *out = s->data[s->top - 1];
     return 1;
 }
 
-void pila_vaciar(Pila *p) {
-    p->count = 0;
+/* Limpiar pila */
+void stack_clear(Stack *s) {
+    s->top = 0;
 }
 
-void pila_mostrar(Pila *p) {
-    int limite = 8;
+/* ============================
+   Utilidades
+   ============================ */
 
+/* Convierte grados a radianes */
+double deg_to_rad(double deg) {
+    return deg * (M_PI / 180.0);
+}
+
+/* Mostrar ayuda */
+void mostrar_ayuda(void) {
+    printf("\n--- Calculadora RPN ---\n");
+    printf("Ingrese expresiones en notación polaca inversa.\n\n");
+
+    printf("Operadores binarios:\n");
+    printf("  +  -  *  /\n\n");
+
+    printf("Funciones:\n");
+    printf("  sqrt      -> raiz cuadrada\n");
+    printf("  sin cos tan (grados)\n");
+    printf("  pow       -> base expo -> pow\n\n");
+
+    printf("Comandos:\n");
+    printf("  h -> ayuda\n");
+    printf("  c -> limpiar pila\n");
+    printf("  p -> mostrar tope\n");
+    printf("  s -> mostrar últimos 8 elementos\n");
+    printf("  q -> salir\n\n");
+}
+
+/* Mostrar pila (máx 8 elementos desde el tope) */
+void mostrar_pila(Stack *s) {
     printf("Pila:\n");
 
-    for (int i = limite; i >= 1; i--) {
-        double v = 0.0;
+    int count = s->top < SHOW_MAX ? s->top : SHOW_MAX;
 
-        if (i <= p->count) {
-            v = p->values[p->count - i];
-        }
+    for (int i = 0; i < count; i++) {
+        int idx = s->top - 1 - i;
+        printf("%d. %.6f\n", i + 1, s->data[idx]);
+    }
 
-        printf("%d. %.6f\n", i, v);
+    if (s->top == 0) {
+        printf("(vacía)\n");
     }
 }
 
-/* ===== Utilidades ===== */
+/* Verifica si token es número */
+int es_numero(const char *token, double *out) {
+    char *endptr;
+    double val = strtod(token, &endptr);
 
-int es_numero(const char *txt, double *out) {
-    char *fin;
-    double val = strtod(txt, &fin);
-
-    if (fin == txt || *fin != '\0') return 0;
+    if (endptr == token || *endptr != '\0') {
+        return 0;
+    }
 
     *out = val;
     return 1;
 }
 
-/* ===== Operaciones ===== */
+/* ============================
+   Operaciones binarias
+   ============================ */
 
-int operar_binario(Pila *p, char operador) {
-    double x, y;
-
-    if (!pila_quitar(p, &y) || !pila_quitar(p, &x)) {
-        printf("Error: pila insuficiente para '%c'\n", operador);
+int op_binaria(Stack *s, char op) {
+    if (stack_size(s) < 2) {
+        printf("Error: pila insuficiente\n");
         return 0;
     }
 
-    double resultado;
+    double b, a;
 
-    switch (operador) {
-        case '+': resultado = x + y; break;
-        case '-': resultado = x - y; break;
-        case '*': resultado = x * y; break;
+    /* Obtener operandos */
+    stack_pop(s, &b);
+    stack_pop(s, &a);
+
+    double res;
+
+    switch (op) {
+        case '+': res = a + b; break;
+        case '-': res = a - b; break;
+        case '*': res = a * b; break;
+
         case '/':
-            if (y == 0) {
+            if (b == 0.0) {
                 printf("Error: división por cero\n");
-                pila_agregar(p, x);
-                pila_agregar(p, y);
+                /* Restaurar operandos */
+                stack_push(s, a);
+                stack_push(s, b);
                 return 0;
             }
-            resultado = x / y;
+            res = a / b;
             break;
+
         default:
             return 0;
     }
 
-    pila_agregar(p, resultado);
-    printf("= %g\n", resultado);
+    stack_push(s, res);
+    printf("= %g\n", res);
     return 1;
 }
 
-int operar_unario(Pila *p, const char *op) {
+/* ============================
+   Funciones unarias
+   ============================ */
+
+int op_sqrt(Stack *s) {
+    if (stack_size(s) < 1) {
+        printf("Error: pila insuficiente\n");
+        return 0;
+    }
+
     double a;
+    stack_pop(s, &a);
 
-    if (!pila_quitar(p, &a)) {
-        printf("Error: pila insuficiente para '%s'\n", op);
+    if (a < 0.0) {
+        printf("Error: raíz de número negativo\n");
+        stack_push(s, a);
         return 0;
     }
 
-    double r;
+    double res = sqrt(a);
+    stack_push(s, res);
+    printf("= %g\n", res);
+    return 1;
+}
 
-    if (!strcmp(op, "sqrt")) {
-        if (a < 0) {
-            printf("Error: raíz negativa\n");
-            pila_agregar(p, a);
-            return 0;
+int op_trig(Stack *s, const char *func) {
+    if (stack_size(s) < 1) {
+        printf("Error: pila insuficiente\n");
+        return 0;
+    }
+
+    double a;
+    stack_pop(s, &a);
+
+    double rad = deg_to_rad(a);
+    double res = 0.0;
+
+    if (strcmp(func, "sin") == 0) res = sin(rad);
+    else if (strcmp(func, "cos") == 0) res = cos(rad);
+    else if (strcmp(func, "tan") == 0) res = tan(rad);
+    else return 0;
+
+    stack_push(s, res);
+    printf("= %g\n", res);
+    return 1;
+}
+
+int op_pow(Stack *s) {
+    if (stack_size(s) < 2) {
+        printf("Error: pila insuficiente\n");
+        return 0;
+    }
+
+    double expo, base;
+    stack_pop(s, &expo);
+    stack_pop(s, &base);
+
+    double res = pow(base, expo);
+
+    stack_push(s, res);
+    printf("= %g\n", res);
+    return 1;
+}
+
+/* ============================
+   Procesamiento de tokens
+   ============================ */
+
+int procesar_token(Stack *s, const char *tok) {
+    double num;
+
+    /* Número */
+    if (es_numero(tok, &num)) {
+        stack_push(s, num);
+        return 1;
+    }
+
+    /* Operadores */
+    if (strlen(tok) == 1) {
+        char c = tok[0];
+
+        if (c == '+' || c == '-' || c == '*' || c == '/') {
+            return op_binaria(s, c);
         }
-        r = sqrt(a);
-    }
-    else if (!strcmp(op, "sin")) {
-        r = sin(a * M_PI / 180.0);
-    }
-    else if (!strcmp(op, "cos")) {
-        r = cos(a * M_PI / 180.0);
-    }
-    else if (!strcmp(op, "tan")) {
-        r = tan(a * M_PI / 180.0);
-    }
-    else {
-        printf("Operador desconocido: %s\n", op);
-        pila_agregar(p, a);
-        return 0;
+
+        /* Comandos */
+        if (c == 'h') {
+            mostrar_ayuda();
+            return 1;
+        }
+
+        if (c == 'c') {
+            stack_clear(s);
+            printf("Pila limpiada\n");
+            return 1;
+        }
+
+        if (c == 'p') {
+            double top;
+            if (stack_peek(s, &top))
+                printf("Tope: %g\n", top);
+            else
+                printf("Pila vacía\n");
+            return 1;
+        }
+
+        if (c == 's') {
+            mostrar_pila(s);
+            return 1;
+        }
+
+        if (c == 'q') {
+            return -1;
+        }
     }
 
-    pila_agregar(p, r);
-    printf("= %g\n", r);
-    return 1;
+    /* Funciones */
+    if (strcmp(tok, "sqrt") == 0) return op_sqrt(s);
+    if (strcmp(tok, "sin")  == 0) return op_trig(s, "sin");
+    if (strcmp(tok, "cos")  == 0) return op_trig(s, "cos");
+    if (strcmp(tok, "tan")  == 0) return op_trig(s, "tan");
+    if (strcmp(tok, "pow")  == 0) return op_pow(s);
+
+    printf("Token desconocido: %s\n", tok);
+    return 0;
 }
 
-int operar_potencia(Pila *p) {
-    double exp, base;
+/* ============================
+   MAIN
+   ============================ */
 
-    if (!pila_quitar(p, &exp) || !pila_quitar(p, &base)) {
-        printf("Error: pila insuficiente para 'pow'\n");
-        return 0;
-    }
+int main(void) {
+    Stack pila;
+    stack_init(&pila);
 
-    double r = pow(base, exp);
-    pila_agregar(p, r);
-    printf("= %g\n", r);
-    return 1;
-}
+    char linea[LINE_MAX];
 
-/* ===== Ayuda ===== */
-
-void ayuda() {
-    printf("Calculadora RPN\n");
-    printf("Ejemplo: 3 4 +\n");
-    printf("Operadores: + - * /\n");
-    printf("Funciones: sqrt sin cos tan pow\n");
-    printf("Trigonometría en grados\n");
-    printf("Comandos:\n");
-    printf(" p -> ver tope\n");
-    printf(" s -> mostrar pila\n");
-    printf(" c -> limpiar pila\n");
-    printf(" h -> ayuda\n");
-    printf(" q -> salir\n");
-}
-
-/* ===== Programa principal ===== */
-
-int main() {
-
-    Pila pila;
-    pila_iniciar(&pila);
-
-    ayuda();
-
-    char linea[MAX_LINE];
+    mostrar_ayuda();
 
     while (1) {
-
         printf("rpn> ");
-        fflush(stdout);
 
-        if (!fgets(linea, sizeof(linea), stdin))
+        if (!fgets(linea, sizeof(linea), stdin)) {
             break;
+        }
 
-        linea[strcspn(linea, "\n")] = 0;
+        char *token = strtok(linea, " \t\n");
 
-        char *tok = strtok(linea, " \t");
+        while (token) {
+            int r = procesar_token(&pila, token);
 
-        while (tok != NULL) {
-
-            if (!strcmp(tok, "q"))
+            if (r == -1) {
+                printf("Saliendo...\n");
                 return 0;
-
-            else if (!strcmp(tok, "h"))
-                ayuda();
-
-            else if (!strcmp(tok, "c")) {
-                pila_vaciar(&pila);
-                printf("[pila limpia]\n");
             }
 
-            else if (!strcmp(tok, "p")) {
-                double t;
-                if (pila_ver_tope(&pila, &t))
-                    printf("tope: %g\n", t);
-                else
-                    printf("[pila vacía]\n");
-            }
-
-            else if (!strcmp(tok, "s"))
-                pila_mostrar(&pila);
-
-            else if (!strcmp(tok, "pow"))
-                operar_potencia(&pila);
-
-            else if (!strcmp(tok, "sqrt") ||
-                     !strcmp(tok, "sin")  ||
-                     !strcmp(tok, "cos")  ||
-                     !strcmp(tok, "tan"))
-                operar_unario(&pila, tok);
-
-            else if (strlen(tok) == 1 && strchr("+-*/", tok[0]))
-                operar_binario(&pila, tok[0]);
-
-            else {
-                double n;
-                if (es_numero(tok, &n))
-                    pila_agregar(&pila, n);
-                else
-                    printf("Token inválido: '%s'\n", tok);
-            }
-
-            tok = strtok(NULL, " \t");
+            token = strtok(NULL, " \t\n");
         }
     }
 
