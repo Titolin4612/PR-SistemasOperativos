@@ -1,5 +1,4 @@
-﻿---
-# Resolución del Problema de los Filósofos Comensales usando Semáforos
+﻿# Resolución del Problema de los Filósofos Comensales usando Semáforos
 
   
 
@@ -17,7 +16,8 @@
 
 ---
 
-  
+\newpage
+
 
 ## 1. Introducción
 
@@ -240,7 +240,7 @@ Hay concurrencia real: Filósofos no vecinos pueden comer simultáneamente. Esto
 
 ## 8. Implementación en C
 
-[📂 `trabajo1.c`](https://github.com/Titolin4612/PR-SistemasOperativos/blob/2706ee06fbeb91764954f025c78a7ff3185cae4f/Trabajos/trabajo1/trabajo1.c)
+[📂 `GitHub: trabajo1.c`](https://github.com/Titolin4612/PR-SistemasOperativos/blob/main/Trabajos/trabajo1/trabajo1.c)
 
 ```c
 #define _DEFAULT_SOURCE    // expone usleep/useconds_t con -std=c11 -pedantic
@@ -404,15 +404,17 @@ int main(void) {
 }
 
 ```
+\clearpage
 
 ## 9. Evidencia de Ejecución
 
 Salida ajustada a solo una ronda para que se visualice bien y quepa en la terminal
 
 <p align="center">
-  <img src="https://github.com/Titolin4612/PR-SistemasOperativos/blob/2706ee06fbeb91764954f025c78a7ff3185cae4f/Trabajos/trabajo1/salidaTerminal.png?raw=true" width="600" alt="Salida de la terminal">
+  <img src="https://github.com/Titolin4612/PR-SistemasOperativos/blob/main/Trabajos/trabajo1/salidaTerminal.png?raw=true" width="600" alt="Salida de la terminal">
 </p>
 
+\clearpage
   
 
 ## 10. Análisis de Resultados
@@ -435,15 +437,19 @@ Se observa que:
 
 * Se evidencia concurrencia real mediante timestamps.
 
+\clearpage
 ## 11. Diagramas
 ### Diagrama de Estados del Filósofo
-<p align="center"> <img src="https://raw.githubusercontent.com/Titolin4612/PR-SistemasOperativos/039e9c3df29f996e34229d40750a23057874f680/Trabajos/trabajo1/Diagrama%20de%20Estados%20del%20Fil%C3%B3sofo.svg" width="300" alt="Diagrama de Estados del Filósofo"> <br> <em>Figura 2: Diagrama de Estados del Filósofo</em> </p>
+<p align="center"> <img src="https://github.com/Titolin4612/PR-SistemasOperativos/blob/main/Trabajos/trabajo1/Diagrama%20de%20Estados%20del%20Fil%C3%B3sofo.png?raw=true" width="300" alt="Diagrama de Estados del Filósofo"> <br> <em>Figura 2: Diagrama de Estados del Filósofo</em> </p>
+\clearpage
 
 ### Diagrama de Recursos y Semáforos
-<p align="center"> <img src="https://raw.githubusercontent.com/Titolin4612/PR-SistemasOperativos/039e9c3df29f996e34229d40750a23057874f680/Trabajos/trabajo1/Diagrama%20de%20Recursos%20y%20Sem%C3%A1foros.svg" width="300" alt="Diagrama de Recursos y Semáforos"> <br> <em>Figura 3: Diagrama de Recursos y Semáforos</em> </p>
+<p align="center"> <img src="https://github.com/Titolin4612/PR-SistemasOperativos/blob/main/Trabajos/trabajo1/Diagrama%20de%20Recursos%20y%20Sem%C3%A1foros.png?raw=true" width="300" alt="Diagrama de Recursos y Semáforos"> <br> <em>Figura 3: Diagrama de Recursos y Semáforos</em> </p>
+\clearpage
 
 ### Diagrama de Sincronización (Lógica del Algoritmo)
-<p align="center"> <img src="https://raw.githubusercontent.com/Titolin4612/PR-SistemasOperativos/039e9c3df29f996e34229d40750a23057874f680/Trabajos/trabajo1/Diagrama%20de%20Sincronizaci%C3%B3n%20-%20Flujo%20L%C3%B3gico.svg" width="300" alt="Diagrama de Sincronización"> <br> <em>Figura 4: Diagrama de Sincronización - Flujo Lógico</em> </p>
+<p align="center"> <img src="https://github.com/Titolin4612/PR-SistemasOperativos/blob/main/Trabajos/trabajo1/Diagrama%20de%20Sincronizaci%C3%B3n%20-%20L%C3%B3gica%20del%20Algoritmo.png?raw=true" width="150" alt="Diagrama de Sincronización"> <br> <em>Figura 4: Diagrama de Sincronización - Flujo Lógico</em> </p>
+\clearpage
 
 ## 12. Conclusión
 

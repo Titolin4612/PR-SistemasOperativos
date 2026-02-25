@@ -1,0 +1,468 @@
+% =====================================================================
+% Trabajo1.tex (standalone) — COMPILA CON pdfLaTeX (NO fontspec / NO minted)
+% =====================================================================
+\documentclass[12pt]{article}
+
+% ---------- Idioma / codificación (pdfLaTeX) ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+
+% ---------- Formato ----------
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{microtype}
+\usepackage{parskip} % evita indentación y mejora espaciado
+
+% ---------- Links ----------
+\usepackage{hyperref}
+\usepackage{xurl}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  urlcolor=blue,
+  citecolor=black
+}
+
+% ---------- Figuras ----------
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+
+% ---------- Código (sin shell-escape) ----------
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstdefinestyle{mystyle}{
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,
+  breaklines=true,
+  breakatwhitespace=false,
+  frame=single,
+  rulecolor=\color{black!30},
+  tabsize=2,
+  showstringspaces=false,
+  upquote=true
+}
+\lstdefinestyle{cstyle}{
+  style=mystyle,
+  language=C
+}
+\lstdefinestyle{txtstyle}{
+  style=mystyle
+}
+
+% ---------- Utilidades ----------
+\newcommand{\HRule}{\par\noindent\rule{0.5\linewidth}{0.5pt}\par}
+
+% Control de tamaño para que NUNCA se salga de la página:
+\newcommand{\fitimage}[2][]{%
+  \begin{center}
+    \includegraphics[
+      width=\linewidth,
+      height=0.83\textheight,
+      keepaspectratio,
+      #1
+    ]{#2}
+  \end{center}
+}
+
+\begin{document}
+
+\section{Resolución del Problema de los Filósofos Comensales usando Semáforos}
+\label{sec:filosofos-semaforos}
+
+\textbf{Curso:} Sistemas Operativos
+
+\textbf{Docente:} Fabio Andres Guzman Figueroa
+
+\textbf{Trabajo 1:} Sincronización con Semáforos
+
+\textbf{Estudiante:} Santiago Hernández Morantes -- Simón Bedoya Urrea
+
+\textbf{Fecha:} 25 de febrero de 2026
+
+\HRule
+
+\newpage
+
+\subsection{Introducción}
+\label{subsec:introduccion}
+
+En sistemas concurrentes, múltiples procesos o hilos pueden competir por recursos compartidos.
+Cuando no existe un mecanismo de sincronización adecuado, pueden presentarse problemas como:
+
+\begin{itemize}
+  \item Condiciones de carrera
+  \item Interbloqueo (\textit{deadlock})
+  \item Inanición (\textit{starvation})
+\end{itemize}
+
+Los semáforos, propuestos por Edsger Dijkstra, son una herramienta fundamental para controlar el acceso a recursos compartidos y evitar estos problemas.
+
+En este trabajo se implementa el clásico problema de los Filósofos Comensales utilizando semáforos POSIX en C.
+
+\subsection{Descripción del Problema}
+\label{subsec:descripcion}
+
+El problema plantea:
+
+\begin{itemize}
+  \item $N$ filósofos sentados alrededor de una mesa circular.
+  \item Entre cada par de filósofos hay un cubierto.
+  \item Para comer, un filósofo necesita dos cubiertos: el de su izquierda y el de su derecha.
+\end{itemize}
+
+Cada filósofo alterna entre:
+
+\begin{itemize}
+  \item Pensar
+  \item Tener hambre
+  \item Comer
+\end{itemize}
+
+El reto es garantizar que:
+
+\begin{itemize}
+  \item No haya interbloqueo (\textit{deadlock}).
+  \item No haya uso simultáneo de un mismo cubierto.
+  \item El sistema sea concurrente (no estrictamente secuencial).
+\end{itemize}
+
+\subsection{Condiciones del Deadlock}
+\label{subsec:condiciones-deadlock}
+
+Para que ocurra un deadlock deben cumplirse cuatro condiciones:
+
+\begin{enumerate}
+  \item \textbf{Exclusión mutua:} los cubiertos no pueden compartirse.
+  \item \textbf{Hold and wait:} un filósofo puede tener un cubierto y esperar otro.
+  \item \textbf{No apropiación:} no se puede forzar a soltar un cubierto.
+  \item \textbf{Espera circular:} cada filósofo espera el recurso del siguiente.
+\end{enumerate}
+
+Nuestra solución rompe la condición de \textbf{espera circular} mediante una verificación controlada del estado de los vecinos antes de habilitar el estado de comida.
+
+\subsection{Estrategia de Solución}
+\label{subsec:estrategia}
+
+Se implementó la solución clásica de Dijkstra basada en:
+
+\begin{itemize}
+  \item Un semáforo global \texttt{mutex} para proteger la sección crítica.
+  \item Un semáforo privado \texttt{s[i]} por cada filósofo.
+  \item Un arreglo \texttt{state[i]} con estados: \texttt{THINKING}, \texttt{HUNGRY}, \texttt{EATING}.
+\end{itemize}
+
+\textbf{Idea principal:} un filósofo solo puede comer si está hambriento y sus dos vecinos no están comiendo. Si no cumple estas condiciones, queda bloqueado en su semáforo privado hasta que pueda continuar.
+
+Esto permite:
+\begin{itemize}
+  \item Evitar interbloqueo
+  \item Maximizar concurrencia (no vecinos pueden comer en paralelo)
+  \item Asegurar exclusión mutua sobre los cubiertos
+\end{itemize}
+
+\subsection{Esquema del Algoritmo}
+\label{subsec:esquema}
+
+\textbf{Estados:} \texttt{THINKING} $\rightarrow$ \texttt{HUNGRY} $\rightarrow$ \texttt{EATING} $\rightarrow$ \texttt{THINKING}
+
+\textbf{Funciones clave:}
+\begin{itemize}
+  \item \texttt{take\_forks(i)}
+  \item \texttt{put\_forks(i)}
+  \item \texttt{test(i)}
+\end{itemize}
+
+\subsection{Pseudocódigo Explicado}
+\label{subsec:pseudocodigo}
+
+\lstset{style=txtstyle}
+\begin{lstlisting}
+PSEUDOCODIGO — FILOSOFOS COMENSALES (Dijkstra con semaforos)
+
+CONSTANTES:
+    N
+    THINKING <- 0
+    HUNGRY   <- 1
+    EATING   <- 2
+
+FUNCIONES AUXILIARES:
+    LEFT(i)  <- (i + N - 1) mod N
+    RIGHT(i) <- (i + 1) mod N
+
+VARIABLES COMPARTIDAS:
+    state[0..N-1]
+    semaphore mutex
+    semaphore s[0..N-1]
+
+PROCEDIMIENTO test(i):
+    if state[i] == HUNGRY and
+       state[LEFT(i)]  != EATING and
+       state[RIGHT(i)] != EATING then
+
+        state[i] <- EATING
+        signal(s[i])
+    end if
+
+PROCEDIMIENTO take_forks(i):
+    wait(mutex)
+        state[i] <- HUNGRY
+        test(i)
+    signal(mutex)
+
+    wait(s[i])   // se bloquea si no puede comer
+    // aqui ya esta en EATING
+
+PROCEDIMIENTO put_forks(i):
+    wait(mutex)
+        state[i] <- THINKING
+        test(LEFT(i))
+        test(RIGHT(i))
+    signal(mutex)
+
+RUTINA philosopher(i):
+    repetir ROUNDS veces:
+        pensar
+        take_forks(i)
+        comer
+        put_forks(i)
+\end{lstlisting}
+
+\subsection{Justificación de Corrección}
+\label{subsec:correctitud}
+
+\textbf{Exclusión mutua de cubiertos:} un filósofo solo entra en estado \texttt{EATING} si ambos vecinos \textbf{no} están comiendo. Por tanto, no hay uso simultáneo de un mismo cubierto.
+
+\textbf{No hay deadlock:} la habilitación a comer se hace mediante \texttt{test(i)} bajo protección de \texttt{mutex}, evitando la espera circular: o queda habilitado completo, o queda bloqueado.
+
+\textbf{Concurrencia real:} filósofos no vecinos pueden comer simultáneamente, pues sus condiciones no interfieren.
+
+\subsection{Implementación en C}
+\label{subsec:implementacion-c}
+
+Repositorio:
+\href{https://github.com/Titolin4612/PR-SistemasOperativos/blob/main/Trabajos/trabajo1/trabajo1.c}{\texttt{GitHub: trabajo1.c}}
+
+\lstset{style=cstyle}
+\begin{lstlisting}
+#define _DEFAULT_SOURCE    // expone usleep/useconds_t con -std=c11 -pedantic
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
+
+#ifndef N_PHILOS
+#define N_PHILOS 5
+#endif
+
+#ifndef ROUNDS
+#define ROUNDS 1
+#endif
+
+#ifndef THINK_US
+#define THINK_US 700000
+#endif
+
+#ifndef EAT_US
+#define EAT_US 700000
+#endif
+
+typedef enum { THINKING, HUNGRY, EATING } state_t;
+
+static state_t state[N_PHILOS];
+static sem_t mutex;
+static sem_t s[N_PHILOS];
+
+static pthread_t th[N_PHILOS];
+static int ids[N_PHILOS];
+
+static struct timespec t0;
+
+static inline int LEFT(int i)  { return (i + N_PHILOS - 1) % N_PHILOS; }
+static inline int RIGHT(int i) { return (i + 1) % N_PHILOS; }
+
+static long now_ms_since_start(void) {
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    long sec  = (long)(t.tv_sec  - t0.tv_sec);
+    long nsec = (long)(t.tv_nsec - t0.tv_nsec);
+    return sec * 1000L + nsec / 1000000L;
+}
+
+static void log_event(int i, int round, const char *msg) {
+    printf("[%6ld ms] F[%d] R[%d/%d] %s\n",
+           now_ms_since_start(), i + 1, round, ROUNDS, msg);
+    fflush(stdout);
+}
+
+static void test(int i) {
+    if (state[i] == HUNGRY &&
+        state[LEFT(i)]  != EATING &&
+        state[RIGHT(i)] != EATING) {
+
+        state[i] = EATING;
+        sem_post(&s[i]);
+    }
+}
+
+static void take_forks(int i, int round) {
+    sem_wait(&mutex);
+
+    state[i] = HUNGRY;
+    log_event(i, round, "hambriento...");
+    test(i);
+
+    sem_post(&mutex);
+
+    sem_wait(&s[i]);
+
+    char buf[128];
+    snprintf(buf, sizeof(buf), "usa cubiertos (%d, %d) y come...",
+             i + 1, RIGHT(i) + 1);
+    log_event(i, round, buf);
+}
+
+static void put_forks(int i, int round) {
+    sem_wait(&mutex);
+
+    state[i] = THINKING;
+
+    char buf[128];
+    snprintf(buf, sizeof(buf), "regresa los cubiertos (%d, %d)",
+             i + 1, RIGHT(i) + 1);
+    log_event(i, round, buf);
+
+    test(LEFT(i));
+    test(RIGHT(i));
+
+    sem_post(&mutex);
+}
+
+static void *philosopher(void *arg) {
+    int i = *(int *)arg;
+
+    for (int r = 1; r <= ROUNDS; r++) {
+        log_event(i, r, "piensa...");
+        usleep((useconds_t)THINK_US);
+
+        take_forks(i, r);
+        usleep((useconds_t)EAT_US);
+
+        put_forks(i, r);
+    }
+
+    printf("[%6ld ms] F[%d] FIN: completo %d rondas.\n",
+           now_ms_since_start(), i + 1, ROUNDS);
+    fflush(stdout);
+
+    return NULL;
+}
+
+int main(void) {
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+
+    printf("=== Filosofos comensales | N=%d | RONDAS=%d | THINK_US=%d | EAT_US=%d ===\n\n",
+           N_PHILOS, ROUNDS, THINK_US, EAT_US);
+    fflush(stdout);
+
+    if (sem_init(&mutex, 0, 1) != 0) {
+        perror("sem_init(mutex)");
+        return 1;
+    }
+
+    for (int i = 0; i < N_PHILOS; i++) {
+        state[i] = THINKING;
+        if (sem_init(&s[i], 0, 0) != 0) {
+            perror("sem_init(s[i])");
+            return 1;
+        }
+    }
+
+    for (int i = 0; i < N_PHILOS; i++) {
+        ids[i] = i;
+        if (pthread_create(&th[i], NULL, philosopher, &ids[i]) != 0) {
+            perror("pthread_create");
+            return 1;
+        }
+    }
+
+    for (int i = 0; i < N_PHILOS; i++) pthread_join(th[i], NULL);
+
+    for (int i = 0; i < N_PHILOS; i++) sem_destroy(&s[i]);
+    sem_destroy(&mutex);
+
+    printf("\n=== Listo: todos los filosofos completaron %d rondas. ===\n", ROUNDS);
+    return 0;
+}
+\end{lstlisting}
+
+\newpage
+\subsection{Evidencia de Ejecución}
+\label{subsec:evidencia}
+
+Para la evidencia se configuró \texttt{ROUNDS = 1} con el fin de que la salida se visualice completa y legible en una sola captura.
+
+\begin{figure}[!htbp]
+  \centering
+  \fitimage{\detokenize{salidaTerminal.png}}
+  \caption{Salida de la terminal (una ronda).}
+\end{figure}
+
+\newpage
+\subsection{Análisis de Resultados}
+\label{subsec:analisis}
+
+Se observa que:
+
+\begin{itemize}
+  \item Todos los filósofos completan la ejecución correctamente (en la evidencia: \texttt{1} ronda).
+  \item No se presentan bloqueos permanentes (\textit{deadlock}).
+  \item La ejecución muestra intercalado de eventos, evidenciando concurrencia real.
+  \item Los \textit{timestamps} permiten verificar que no vecinos pueden comer en intervalos cercanos.
+\end{itemize}
+
+\newpage
+\subsection{Diagramas}
+\label{subsec:diagramas}
+
+\subsubsection{Diagrama de Estados del Filósofo}
+\label{subsubsec:diag-estados}
+
+\begin{figure}[!htbp]
+  \centering
+  \fitimage{\detokenize{Diagrama de Estados del Filósofo.png}}
+  \caption{Diagrama de estados del filósofo.}
+\end{figure}
+
+\newpage
+\subsubsection{Diagrama de Recursos y Semáforos}
+\label{subsubsec:diag-recursos}
+
+\begin{figure}[!htbp]
+  \centering
+  \fitimage{\detokenize{Diagrama de Recursos y Semáforos.png}}
+  \caption{Recursos compartidos y estructuras de control (mutex y semáforos privados).}
+\end{figure}
+
+\newpage
+\subsubsection{Diagrama de Sincronización (Lógica del Algoritmo)}
+\label{subsubsec:diag-sync}
+
+\begin{figure}[!htbp]
+  \centering
+  \fitimage{\detokenize{Diagrama de Sincronización - Lógica del Algoritmo.png}}
+  \caption{Flujo lógico de sincronización con \texttt{wait}, cambio de estado y \texttt{test}.}
+\end{figure}
+
+\newpage
+\subsection{Conclusión}
+\label{subsec:conclusion}
+
+Se implementó correctamente el problema de los Filósofos Comensales utilizando semáforos POSIX.
+La solución evita interbloqueo, permite ejecución concurrente y sincroniza correctamente los accesos a recursos.
+Además, es configurable mediante macros para cambiar el número de filósofos y el número de rondas.
+
+\end{document}
